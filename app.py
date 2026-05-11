@@ -3,12 +3,12 @@ from flask_cors import CORS
 from gtts import gTTS
 from deep_translator import GoogleTranslator
 import os
-import time
+import uuid   #  IMPORTANT FIX
 
 app = Flask(__name__)
 CORS(app)
 
-# ensure static folder exists
+# static folder
 if not os.path.exists("static"):
     os.makedirs("static")
 
@@ -28,26 +28,36 @@ def process():
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
-    # Translation logic
+    translated = ""
+    lang = "en"
+
+    #  TRANSLATION LOGIC
     if direction == "en-hi":
-        translated = GoogleTranslator(source='auto', target='hi').translate(text)
+        translated = GoogleTranslator(source="auto", target="hi").translate(text)
         lang = "hi"
-    else:
-        translated = GoogleTranslator(source='auto', target='en').translate(text)
+
+    elif direction == "hi-en":
+        translated = GoogleTranslator(source="auto", target="en").translate(text)
         lang = "en"
 
-    # unique audio filename (prevents overwrite issues)
-    filename = f"reply_{int(time.time())}.mp3"
+    else:
+        return jsonify({"error": "Invalid direction"}), 400
+
+    #  FIX 1: UNIQUE FILE NAME (NO REUSE)
+    filename = f"reply_{uuid.uuid4().hex}.mp3"
     audio_path = os.path.join("static", filename)
 
-    # text to speech
-    tts = gTTS(translated, lang=lang)
-    tts.save(audio_path)
+    try:
+        tts = gTTS(text=translated, lang=lang, slow=False)
+        tts.save(audio_path)
+    except:
+        tts = gTTS(text=translated, lang="en", slow=False)
+        tts.save(audio_path)
 
     return jsonify({
         "input": text,
         "output": translated,
-        "audio": f"/static/{filename}"
+        "audio": "/static/" + filename
     })
 
 
